@@ -7,7 +7,7 @@ const writeFileAsync = promisify(fs.writeFile);
 const SKILL_EXPERIMENTAL_REFACTORIZADO =
   "skill-experimental-refactorizado.json";
 const FILE_FROM = "skill-experimental-refactorizado.json"; //colocar nombre de skill origen (JSON)
-const FILE_TO = "simpleeSeguros.json"; //colocar nombre de skill objetivo (JSON)
+const FILE_TO = "skillMutual.json"; //colocar nombre de skill objetivo (JSON)
 const FOLDER_NAME_FROM = "Skill Base"; //colocar nombre de folder origen
 const FOLDER_NAME_TO = "Skill Base"; //colocar nombre de folder destino
 
@@ -15,23 +15,26 @@ const FOLDER_NAME_TO = "Skill Base"; //colocar nombre de folder destino
   let skillFrom = await readSkill(FILE_FROM);
   let skillTo = await readSkill(FILE_TO);
   // refactorTreeNodes(skillFrom); //refactorizar los ids del skill base experimental
-  // let nodeIdFrom = getNodeId(skillFrom, FOLDER_NAME_FROM);
-  // let nodeIdTo = getNodeId(skillTo, FOLDER_NAME_TO);
-  // //asignando id de folder origen a folder objetivo
-  // await updateSkillBaseFolderId(skillFrom, skillTo, FOLDER_NAME_TO);
-  // //vaciando folder Skill Base del Skill Objetivo
-  // await deleteChildsRecursivelyById(skillTo, nodeIdTo, FOLDER_NAME_TO);
-  // //copiando folder de skill origen a skill objetivo
-  // await copyNodeRecursivelyById(
-  //   skillFrom,
-  //   nodeIdFrom,
-  //   FOLDER_NAME_FROM,
-  //   skillTo
-  // );
-  // //agregar intents y entities faltantes
+  let nodeIdFrom = getNodeId(skillFrom, FOLDER_NAME_FROM);
+  let nodeIdTo = getNodeId(skillTo, FOLDER_NAME_TO);
+  //verificando si folder existe, caso contrario se copia del skill base
+  await folderExists(skillFrom, skillTo, FOLDER_NAME_TO);
+  //asignando id de folder origen a folder objetivo
+  await updateSkillBaseFolderId(skillFrom, skillTo, FOLDER_NAME_TO);
+  //vaciando folder Skill Base del Skill Objetivo
+  await deleteChildsRecursivelyById(skillTo, nodeIdTo, FOLDER_NAME_TO);
+  //copiando folder de skill origen a skill objetivo
+  await copyNodeRecursivelyById(
+    skillFrom,
+    nodeIdFrom,
+    FOLDER_NAME_FROM,
+    skillTo
+  );
+  //agregar intents y entities faltantes
   await addMissingIntentsAndEntities(skillFrom, skillTo);
-  //actualizar metadata
+  // actualizar metadata
   await updateMetadata(skillTo);
+  await compareSkillsNodes(skillTo);
   console.log("HECHO!");
 })();
 
@@ -72,7 +75,6 @@ async function updateSkillBaseFolderId(skillFrom, skillTo, nodeName) {
     if (dialogNode.dialog_node === toFolderId)
       dialogNode.dialog_node = fromFolderId;
     if (dialogNode.previous_sibling === toFolderId) {
-      console.log("se actualizo previo...", fromFolderId);
       dialogNode.previous_sibling = fromFolderId;
     }
   }
@@ -179,6 +181,12 @@ function getNodeById(skill, nodeId) {
   return node;
 }
 
+function getNodeByName(skill, nodeName) {
+  let dialogNodes = skill.dialog_nodes;
+  let node = dialogNodes.find((dialogNode) => dialogNode.title === nodeName);
+  return node;
+}
+
 async function refactorTreeNodes(skill) {
   //actualiza los ids del skill experimental (origen)
   let dialogNodes = skill.dialog_nodes;
@@ -236,4 +244,44 @@ async function updateMetadata(skillTo) {
   json = JSON.stringify(skillTo); //convert it back to json
   await writeFileAsync(FILE_TO, json, "utf8");
   console.log("metadata actualizada!");
+}
+
+function compareSkillsNodes(skillTo) {
+  let toNodes = skillTo.dialog_nodes;
+  let sum = 0;
+  let nodesNames = toNodes
+    .map((toNode) => toNode.title)
+    .filter((toNode) => toNode != undefined);
+  for (const toNode of toNodes) {
+    if (toNode.title)
+      if (getAllIndexes(nodesNames, toNode.title).length > 1) {
+        console.log("Se repite el nodo: ", toNode.title);
+        sum += 1;
+      }
+  }
+  console.log("se repitieron: ", sum);
+}
+
+function getAllIndexes(arr, val) {
+  var indexes = [],
+    i = -1;
+  while ((i = arr.indexOf(val, i + 1)) != -1) {
+    indexes.push(i);
+  }
+  return indexes;
+}
+
+async function folderExists(skillFrom, skillTo, folderName) {
+  let toNodes = skillTo.dialog_nodes;
+  let hasFolder = toNodes.findIndex(
+    (toNode) => toNode.title === folderName && toNode.type === "folder"
+  );
+  if (hasFolder === -1) {
+    console.log(`El folder ${folderName} no existía y se creará...`);
+    let nodeToAdd = getNodeByName(skillFrom, folderName);
+    skillTo.dialog_nodes.push(nodeToAdd);
+  }
+  //guardando cambios
+  json = JSON.stringify(skillTo); //convert it back to json
+  await writeFileAsync(FILE_TO, json, "utf8");
 }
