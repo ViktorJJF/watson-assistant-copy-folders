@@ -1,0 +1,22 @@
+{
+  "name": "watson-assistant-copy-folders",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ViktorJJF/watson-assistant-copy-folders.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ViktorJJF/watson-assistant-copy-folders/issues"
+  },
+  "homepage": "https://github.com/ViktorJJF/watson-assistant-copy-folders#readme",
+  "dependencies": {
+    "uuid": "^8.3.2"
+  }
+}
